@@ -1,0 +1,17 @@
+[device]
+touch = "/dev/input/event22"
+consumer = "/dev/input/event23"
+
+[gesture]
+threshold = 80
+double_tap_ms = 500
+
+[mappings]
+LEFT = "command:hyprctl dispatch workspace e-1"
+RIGHT = "command:hyprctl dispatch workspace e+1"
+DOWN = "command:hyprctl dispatch cyclenext"
+UP = "command:hyprctl dispatch cyclenext prev"
+DOUBLE_TAP = "command:hyprctl dispatch togglespecialworkspace"
+TAP = """
+text:继续
+"""
