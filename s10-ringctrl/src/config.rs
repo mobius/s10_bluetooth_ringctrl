@@ -116,4 +116,39 @@ mod tests {
         let parsed: Config = toml::from_str(&toml_str).unwrap();
         assert_eq!(parsed.mappings.len(), cfg.mappings.len());
     }
+
+    #[test]
+    fn test_alt_config_parsing() {
+        let toml_str = r#"
+alt_config = "s10-ringctrl-hyprland.toml"
+
+[gesture]
+threshold = 80
+double_tap_ms = 500
+long_press_ms = 3000
+
+[mappings]
+UP = "command:hyprctl"
+"#;
+        let parsed: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(parsed.alt_config, Some("s10-ringctrl-hyprland.toml".to_string()));
+        assert_eq!(parsed.gesture.long_press_ms, 3000);
+    }
+
+    #[test]
+    fn test_alt_config_at_top() {
+        let toml_str = r#"
+alt_config = "s10-ringctrl-hyprland.toml"
+
+[gesture]
+threshold = 80
+double_tap_ms = 500
+long_press_ms = 3000
+
+[mappings]
+UP = "command:hyprctl"
+"#;
+        let parsed: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(parsed.alt_config, Some("s10-ringctrl-hyprland.toml".to_string()));
+    }
 }

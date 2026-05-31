@@ -1,3 +1,7 @@
+# S10 RingCtrl 主配置 — herdr 终端管理器映射
+# 长按 mode (≥3s) 切换到 alt_config 指定的配置
+alt_config = "s10-ringctrl-hyprland.toml"
+
 [device]
 touch = "/dev/input/event22"
 consumer = "/dev/input/event23"
@@ -6,17 +10,6 @@ consumer = "/dev/input/event23"
 threshold = 80
 double_tap_ms = 500
 long_press_ms = 3000
-
-# ============================================
-# 当前激活: herdr 终端管理器映射
-# ============================================
-# Agent 列表:
-#   grok  → pane w651fddbbf986d1-1  (cwd: /home/joey/Work/dev/temp)
-#   kimi  → pane w651fddbbf986d1-2  (cwd: /home/joey/Work/dev/temp/bluetooth)
-#
-# 长按 mode (≥3s) 切换到 alt_config 指定的配置
-# ============================================
-alt_config = "s10-ringctrl-hyprland.toml"
 
 [mappings]
 # --- 发给 kimi (bluetooth 工作区) ---

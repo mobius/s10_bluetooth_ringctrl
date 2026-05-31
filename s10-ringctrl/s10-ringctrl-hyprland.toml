@@ -1,3 +1,7 @@
+# S10 RingCtrl 副配置 — Hyprland 全局操作
+# 长按 mode (≥3s) 切回主配置
+alt_config = "s10-ringctrl.toml"
+
 [device]
 touch = "/dev/input/event22"
 consumer = "/dev/input/event23"
@@ -6,13 +10,6 @@ consumer = "/dev/input/event23"
 threshold = 80
 double_tap_ms = 500
 long_press_ms = 3000
-
-# ============================================
-# Hyprland 全局操作（alt 配置）
-# ============================================
-# 长按 mode (≥3s) 切回主配置
-# ============================================
-alt_config = "s10-ringctrl.toml"
 
 [mappings]
 LEFT       = "command:hyprctl dispatch workspace e-1"

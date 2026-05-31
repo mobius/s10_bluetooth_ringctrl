@@ -106,15 +106,19 @@ fn main() -> Result<()> {
                 loop {
                     match dev.fetch_events() {
                         Ok(events) => {
+                            let mut had_tracking = false;
                             for ev in events {
                                 if let evdev::InputEventKind::AbsAxis(axis) = ev.kind() {
                                     if axis == evdev::AbsoluteAxisType::ABS_MT_TRACKING_ID {
+                                        had_tracking = true;
                                         if ev.value() >= 0 {
                                             tracking_since = Some(Instant::now());
                                             long_press_sent = false;
+                                            info!("[touch] TrackingStart");
                                         } else {
                                             tracking_since = None;
                                             long_press_sent = false;
+                                            info!("[touch] TrackingEnd");
                                         }
                                     }
                                 }
@@ -122,11 +126,17 @@ fn main() -> Result<()> {
                                     return;
                                 }
                             }
+                            if !had_tracking && tracking_since.is_some() {
+                                info!("[touch] poll while tracking, elapsed={}ms", tracking_since.unwrap().elapsed().as_millis());
+                            }
                         }
                         Err(e)
                             if e.kind() == std::io::ErrorKind::WouldBlock
                                 || e.kind() == std::io::ErrorKind::Other =>
                         {
+                            if tracking_since.is_some() {
+                                info!("[touch] WouldBlock while tracking, elapsed={}ms", tracking_since.unwrap().elapsed().as_millis());
+                            }
                             thread::sleep(Duration::from_millis(50));
                         }
                         Err(e) => {
@@ -137,10 +147,10 @@ fn main() -> Result<()> {
 
                     // Check long press
                     if let Some(start) = tracking_since {
-                        if !long_press_sent
-                            && start.elapsed().as_millis() >= long_press_ms as u128
-                        {
+                        let elapsed = start.elapsed().as_millis();
+                        if !long_press_sent && elapsed >= long_press_ms as u128 {
                             long_press_sent = true;
+                            info!("[touch] LongPress triggered after {}ms", elapsed);
                             if tx_touch.send(Event::LongPress).is_err() {
                                 return;
                             }
