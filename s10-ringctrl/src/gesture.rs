@@ -5,6 +5,20 @@ pub enum Gesture {
     Up, Down, Left, Right, Tap, DoubleTap,
 }
 
+impl Gesture {
+    /// Returns the canonical mapping key used in config files (UPPER_SNAKE_CASE).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Gesture::Up => "UP",
+            Gesture::Down => "DOWN",
+            Gesture::Left => "LEFT",
+            Gesture::Right => "RIGHT",
+            Gesture::Tap => "TAP",
+            Gesture::DoubleTap => "DOUBLE_TAP",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum TouchEvent {
     TrackingStart,

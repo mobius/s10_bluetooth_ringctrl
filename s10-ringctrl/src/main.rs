@@ -191,10 +191,10 @@ fn handle_touch_event(
                     detector.feed(TouchEvent::TrackingStart);
                 } else {
                     if let Some(gesture) = detector.feed(TouchEvent::TrackingEnd) {
-                        let name = format!("{:?}", gesture);
+                        let name = gesture.as_str();
                         if remap {
-                            if let Some(action) = config.get_mapping(&name) {
-                                executor.execute(action, &name);
+                            if let Some(action) = config.get_mapping(name) {
+                                executor.execute(action, name);
                             }
                         } else {
                             println!("[DEBUG] >>> {} DETECTED <<<", name);
