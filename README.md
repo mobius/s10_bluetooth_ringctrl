@@ -154,6 +154,51 @@ hyprctl dispatch exec 'loginctl lock-session'
 
 ---
 
+## herdr 终端管理器集成
+
+如果你用 [herdr](https://herdr.dev) 管理 Alacritty 会话，可以把字符直接发到指定 pane/agent，**无需窗口焦点切换**：
+
+### 1. 查看你的 agent/pane
+
+```bash
+herdr pane list
+herdr agent list
+```
+
+### 2. 编辑配置切换为 herdr 模式
+
+打开 `s10-ringctrl.toml`，注释掉 Hyprland 映射，启用 herdr 映射：
+
+```toml
+[mappings]
+# 通过 agent 名称发送（推荐，agent 名称稳定）
+TAP        = "command:herdr agent send grok '继续'"
+DOUBLE_TAP = "command:herdr agent send grok 'make test'"
+UP         = "command:herdr agent send grok 'git push'"
+DOWN       = "command:herdr agent send grok 'git pull'"
+LEFT       = "command:herdr agent send kimi 'npm run dev'"
+RIGHT      = "command:herdr agent send kimi 'cargo build'"
+
+# 通过 pane_id 发送（pane_id 重启会变，不推荐硬编码）
+# LEFT = "command:herdr pane send-text w651fddbbf986d1-1 'npm run dev'"
+
+# 发送组合键（如 Ctrl+C）
+# RIGHT = "command:herdr pane send-keys w651fddbbf986d1-1 Control_L c"
+```
+
+### 3. 使用 wrapper 脚本启动（保留 herdr socket 环境变量）
+
+```bash
+cd s10-ringctrl
+./run.sh --remap
+```
+
+`run.sh` 会自动保留 `XDG_RUNTIME_DIR`（herdr socket 路径）和 `HYPRLAND_INSTANCE_SIGNATURE`。
+
+> ⚠️ `sudo` 默认会丢弃用户环境变量，导致 `herdr` 命令找不到 server。必须用 `sudo -E` 或 wrapper 脚本。
+
+---
+
 ## 设为开机自启
 
 ```bash

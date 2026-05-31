@@ -6,12 +6,33 @@ consumer = "/dev/input/event23"
 threshold = 80
 double_tap_ms = 500
 
+# ============================================
+# 方案 A: Hyprland 全局操作（当前默认）
+# ============================================
 [mappings]
 LEFT = "command:hyprctl dispatch workspace e-1"
 RIGHT = "command:hyprctl dispatch workspace e+1"
 DOWN = "command:hyprctl dispatch cyclenext"
 UP = "command:hyprctl dispatch cyclenext prev"
 DOUBLE_TAP = "command:hyprctl dispatch togglespecialworkspace"
-TAP = """
-text:继续
-"""
+TAP = "text:继续"
+
+# ============================================
+# 方案 B: herdr 终端管理器（发给特定 pane/agent）
+# 取消下面注释并注释掉上方映射即可切换
+# ============================================
+# [mappings]
+# # 发给指定 herdr agent（名称稳定，推荐）
+# TAP        = "command:herdr agent send grok '继续'"
+# DOUBLE_TAP = "command:herdr agent send grok 'make test'"
+# UP         = "command:herdr agent send grok 'git push'"
+# DOWN       = "command:herdr agent send grok 'git pull'"
+# LEFT       = "command:herdr agent send kimi 'npm run dev'"
+# RIGHT      = "command:herdr agent send kimi 'cargo build'"
+#
+# # 发给指定 pane（pane_id 重启会变，不推荐硬编码）
+# # LEFT  = "command:herdr pane send-text w651fddbbf986d1-1 'npm run dev'"
+# # RIGHT = "command:herdr pane send-keys w651fddbbf986d1-1 Control_L c"
+#
+# # Power 键映射
+# KEY_VOLUMEUP = "command:herdr agent send grok 'exit'"
