@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::collections::HashMap;
 use std::process::Command;
 use tracing::{debug, error, info, warn};

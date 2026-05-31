@@ -11,7 +11,7 @@ pub struct Config {
     pub gesture: GestureConfig,
     #[serde(default)]
     pub mappings: HashMap<String, String>,
-    /// Path to alternative config file (switched on long-press)
+    /// Path to alternative config file (switched on tap/mod key)
     #[serde(default)]
     pub alt_config: Option<String>,
 }
@@ -28,10 +28,6 @@ pub struct DeviceConfig {
 pub struct GestureConfig {
     #[serde(default = "default_threshold")]
     pub threshold: i32,
-    #[serde(default = "default_double_tap_ms")]
-    pub double_tap_ms: u64,
-    #[serde(default = "default_long_press_ms")]
-    pub long_press_ms: u64,
 }
 
 fn default_device() -> DeviceConfig {
@@ -42,18 +38,12 @@ fn default_device() -> DeviceConfig {
 }
 
 fn default_gesture() -> GestureConfig {
-    GestureConfig {
-        threshold: 80,
-        double_tap_ms: 500,
-        long_press_ms: 3000,
-    }
+    GestureConfig { threshold: 80 }
 }
 
 fn default_touch() -> String { "/dev/input/event22".to_string() }
 fn default_consumer() -> String { "/dev/input/event23".to_string() }
 fn default_threshold() -> i32 { 80 }
-fn default_double_tap_ms() -> u64 { 500 }
-fn default_long_press_ms() -> u64 { 3000 }
 
 impl Default for Config {
     fn default() -> Self {
@@ -62,8 +52,6 @@ impl Default for Config {
         mappings.insert("DOWN".to_string(), "command:hyprctl dispatch cyclenext".to_string());
         mappings.insert("LEFT".to_string(), "command:hyprctl dispatch workspace e-1".to_string());
         mappings.insert("RIGHT".to_string(), "command:hyprctl dispatch workspace e+1".to_string());
-        mappings.insert("TAP".to_string(), "text:继续\n".to_string());
-        mappings.insert("DOUBLE_TAP".to_string(), "command:hyprctl dispatch togglespecialworkspace".to_string());
         
         Config {
             device: default_device(),
@@ -124,26 +112,6 @@ alt_config = "s10-ringctrl-hyprland.toml"
 
 [gesture]
 threshold = 80
-double_tap_ms = 500
-long_press_ms = 3000
-
-[mappings]
-UP = "command:hyprctl"
-"#;
-        let parsed: Config = toml::from_str(toml_str).unwrap();
-        assert_eq!(parsed.alt_config, Some("s10-ringctrl-hyprland.toml".to_string()));
-        assert_eq!(parsed.gesture.long_press_ms, 3000);
-    }
-
-    #[test]
-    fn test_alt_config_at_top() {
-        let toml_str = r#"
-alt_config = "s10-ringctrl-hyprland.toml"
-
-[gesture]
-threshold = 80
-double_tap_ms = 500
-long_press_ms = 3000
 
 [mappings]
 UP = "command:hyprctl"

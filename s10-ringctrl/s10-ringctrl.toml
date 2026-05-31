@@ -1,5 +1,3 @@
-# S10 RingCtrl 主配置 — herdr 终端管理器映射
-# 长按 mode (≥3s) 切换到 alt_config 指定的配置
 alt_config = "s10-ringctrl-hyprland.toml"
 
 [device]
@@ -8,19 +6,11 @@ consumer = "/dev/input/event23"
 
 [gesture]
 threshold = 80
-double_tap_ms = 1000
-long_press_ms = 3000
 
 [mappings]
-# --- 发给 kimi (bluetooth 工作区) ---
-TAP        = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh send-text '继续'"
-UP         = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh prev-workspace"
-DOWN       = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh next-workspace"
-LEFT       = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh prev-agent"
-RIGHT      = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh next-agent"
-
-# --- 双击 Mode 键切换配置 ---
-# DOUBLE_TAP 由程序内部处理，此处无需配置
-
-# --- Power 键 (消费者控制) ---
-KEY_VOLUMEUP = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh esc-esc"
+UP = "command:./s10-herdr.sh next-workspace"
+DOWN = "command:./s10-herdr.sh prev-workspace"
+LEFT = "command:./s10-herdr.sh next-agent"
+RIGHT = "command:./s10-herdr.sh prev-agent"
+TAP = "text:继续"
+POWER = "key:Escape"
