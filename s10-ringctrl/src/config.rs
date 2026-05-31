@@ -11,6 +11,9 @@ pub struct Config {
     pub gesture: GestureConfig,
     #[serde(default)]
     pub mappings: HashMap<String, String>,
+    /// Path to alternative config file (switched on long-press)
+    #[serde(default)]
+    pub alt_config: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +30,8 @@ pub struct GestureConfig {
     pub threshold: i32,
     #[serde(default = "default_double_tap_ms")]
     pub double_tap_ms: u64,
+    #[serde(default = "default_long_press_ms")]
+    pub long_press_ms: u64,
 }
 
 fn default_device() -> DeviceConfig {
@@ -40,6 +45,7 @@ fn default_gesture() -> GestureConfig {
     GestureConfig {
         threshold: 80,
         double_tap_ms: 500,
+        long_press_ms: 3000,
     }
 }
 
@@ -47,6 +53,7 @@ fn default_touch() -> String { "/dev/input/event22".to_string() }
 fn default_consumer() -> String { "/dev/input/event23".to_string() }
 fn default_threshold() -> i32 { 80 }
 fn default_double_tap_ms() -> u64 { 500 }
+fn default_long_press_ms() -> u64 { 3000 }
 
 impl Default for Config {
     fn default() -> Self {
@@ -62,6 +69,7 @@ impl Default for Config {
             device: default_device(),
             gesture: default_gesture(),
             mappings,
+            alt_config: None,
         }
     }
 }

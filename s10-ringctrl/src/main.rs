@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use std::sync::mpsc;
 use std::thread;
+use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
 mod action;
@@ -41,9 +42,10 @@ struct Cli {
     quiet: bool,
 }
 
-enum DeviceType {
-    Touch,
-    Consumer,
+enum Event {
+    Touch(evdev::InputEvent),
+    Consumer(evdev::InputEvent),
+    LongPress,
 }
 
 fn main() -> Result<()> {
@@ -71,35 +73,77 @@ fn main() -> Result<()> {
         config.device.consumer = consumer;
     }
 
+    let primary_config_path = cli.config.clone();
+    let mut active_config_path = primary_config_path.clone();
+
     info!("S10 RingCtrl starting...");
     info!("Touch device: {}", config.device.touch);
     info!("Consumer device: {}", config.device.consumer);
     info!(
-        "Threshold: {}, Double-tap: {}ms",
-        config.gesture.threshold, config.gesture.double_tap_ms
+        "Threshold: {}, Double-tap: {}ms, Long-press: {}ms",
+        config.gesture.threshold,
+        config.gesture.double_tap_ms,
+        config.gesture.long_press_ms
     );
     info!("Mode: {}", if cli.remap { "REMAP" } else { "DEBUG" });
+    if let Some(ref alt) = config.alt_config {
+        info!("Alt config: {}", alt);
+    }
 
-    let (tx, rx) = mpsc::channel::<(DeviceType, evdev::InputEvent)>();
+    let (tx, rx) = mpsc::channel::<Event>();
 
     let touch_path = config.device.touch.clone();
+    let long_press_ms = config.gesture.long_press_ms;
     let tx_touch = tx.clone();
     thread::spawn(move || {
         match open_device(&touch_path, "touch") {
             Ok(mut dev) => {
-                info!("Touch thread started");
+                // Set non-blocking so we can poll for long-press timer
+                set_nonblocking(&dev);
+                info!("Touch thread started (non-blocking)");
+                let mut tracking_since: Option<Instant> = None;
+                let mut long_press_sent = false;
                 loop {
                     match dev.fetch_events() {
                         Ok(events) => {
                             for ev in events {
-                                if tx_touch.send((DeviceType::Touch, ev)).is_err() {
+                                if let evdev::InputEventKind::AbsAxis(axis) = ev.kind() {
+                                    if axis == evdev::AbsoluteAxisType::ABS_MT_TRACKING_ID {
+                                        if ev.value() >= 0 {
+                                            tracking_since = Some(Instant::now());
+                                            long_press_sent = false;
+                                        } else {
+                                            tracking_since = None;
+                                            long_press_sent = false;
+                                        }
+                                    }
+                                }
+                                if tx_touch.send(Event::Touch(ev)).is_err() {
                                     return;
                                 }
                             }
                         }
+                        Err(e)
+                            if e.kind() == std::io::ErrorKind::WouldBlock
+                                || e.kind() == std::io::ErrorKind::Other =>
+                        {
+                            thread::sleep(Duration::from_millis(50));
+                        }
                         Err(e) => {
                             warn!("Touch device error: {}", e);
-                            thread::sleep(std::time::Duration::from_millis(100));
+                            thread::sleep(Duration::from_millis(100));
+                        }
+                    }
+
+                    // Check long press
+                    if let Some(start) = tracking_since {
+                        if !long_press_sent
+                            && start.elapsed().as_millis() >= long_press_ms as u128
+                        {
+                            long_press_sent = true;
+                            if tx_touch.send(Event::LongPress).is_err() {
+                                return;
+                            }
                         }
                     }
                 }
@@ -120,14 +164,14 @@ fn main() -> Result<()> {
                     match dev.fetch_events() {
                         Ok(events) => {
                             for ev in events {
-                                if tx_consumer.send((DeviceType::Consumer, ev)).is_err() {
+                                if tx_consumer.send(Event::Consumer(ev)).is_err() {
                                     return;
                                 }
                             }
                         }
                         Err(e) => {
                             warn!("Consumer device error: {}", e);
-                            thread::sleep(std::time::Duration::from_millis(100));
+                            thread::sleep(Duration::from_millis(100));
                         }
                     }
                 }
@@ -140,16 +184,51 @@ fn main() -> Result<()> {
 
     let mut detector = GestureDetector::new(config.gesture.threshold, config.gesture.double_tap_ms);
     let executor = ActionExecutor::new();
+    let mut long_press_active = false;
 
     info!("Capturing events. Press Ctrl+C to stop.");
 
     loop {
         match rx.recv() {
-            Ok((DeviceType::Touch, ev)) => {
+            Ok(Event::Touch(ev)) => {
+                // If this TrackingEnd follows a LongPress, consume it silently
+                if let evdev::InputEventKind::AbsAxis(axis) = ev.kind() {
+                    if axis == evdev::AbsoluteAxisType::ABS_MT_TRACKING_ID && ev.value() < 0 {
+                        if long_press_active {
+                            long_press_active = false;
+                            continue;
+                        }
+                    }
+                    if axis == evdev::AbsoluteAxisType::ABS_MT_TRACKING_ID && ev.value() >= 0 {
+                        long_press_active = false;
+                    }
+                }
                 handle_touch_event(&ev, &mut detector, cli.remap, &config, &executor);
             }
-            Ok((DeviceType::Consumer, ev)) => {
+            Ok(Event::Consumer(ev)) => {
                 handle_consumer_event(&ev, cli.remap, &config, &executor);
+            }
+            Ok(Event::LongPress) => {
+                long_press_active = true;
+                if let Some(ref alt) = config.alt_config {
+                    let next_path = if active_config_path == primary_config_path {
+                        alt.clone()
+                    } else {
+                        primary_config_path.clone()
+                    };
+                    match Config::load(&next_path) {
+                        Ok(new_config) => {
+                            config = new_config;
+                            active_config_path = next_path;
+                            info!("Config switched to: {}", active_config_path);
+                        }
+                        Err(e) => {
+                            warn!("Failed to load config '{}': {}", next_path, e);
+                        }
+                    }
+                } else {
+                    info!("Long press detected, but no alt_config set.");
+                }
             }
             Err(_) => {
                 info!("Event channel closed, exiting.");
@@ -159,6 +238,16 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn set_nonblocking(dev: &evdev::Device) {
+    use std::os::unix::io::AsRawFd;
+    unsafe {
+        let flags = libc::fcntl(dev.as_raw_fd(), libc::F_GETFL, 0);
+        if flags >= 0 {
+            libc::fcntl(dev.as_raw_fd(), libc::F_SETFL, flags | libc::O_NONBLOCK);
+        }
+    }
 }
 
 fn open_device(path: &str, label: &str) -> Result<evdev::Device> {

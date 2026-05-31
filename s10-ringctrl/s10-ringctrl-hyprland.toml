@@ -1,0 +1,26 @@
+[device]
+touch = "/dev/input/event22"
+consumer = "/dev/input/event23"
+
+[gesture]
+threshold = 80
+double_tap_ms = 500
+long_press_ms = 3000
+
+# ============================================
+# Hyprland 全局操作（alt 配置）
+# ============================================
+# 长按 mode (≥3s) 切回主配置
+# ============================================
+alt_config = "s10-ringctrl.toml"
+
+[mappings]
+LEFT       = "command:hyprctl dispatch workspace e-1"
+RIGHT      = "command:hyprctl dispatch workspace e+1"
+DOWN       = "command:hyprctl dispatch cyclenext"
+UP         = "command:hyprctl dispatch cyclenext prev"
+DOUBLE_TAP = "command:hyprctl dispatch togglespecialworkspace"
+TAP        = "text:继续"
+
+# Power 键映射
+KEY_VOLUMEUP = "command:hyprctl dispatch exec 'pamixer -i 5 && notify-send Volume +'"

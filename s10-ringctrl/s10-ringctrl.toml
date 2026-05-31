@@ -5,22 +5,29 @@ consumer = "/dev/input/event23"
 [gesture]
 threshold = 80
 double_tap_ms = 500
+long_press_ms = 3000
 
 # ============================================
-# herdr 终端管理器映射
+# 当前激活: herdr 终端管理器映射
 # ============================================
-# UP/DOWN    → 切换 herdr workspace
-# LEFT/RIGHT → 切换 herdr agent
-# TAP        → 发送 "继续" 到当前 agent
-# DOUBLE_TAP → 发送两个 Esc 到当前 agent（取消行为）
+# Agent 列表:
+#   grok  → pane w651fddbbf986d1-1  (cwd: /home/joey/Work/dev/temp)
+#   kimi  → pane w651fddbbf986d1-2  (cwd: /home/joey/Work/dev/temp/bluetooth)
+#
+# 长按 mode (≥3s) 切换到 alt_config 指定的配置
 # ============================================
+alt_config = "s10-ringctrl-hyprland.toml"
+
 [mappings]
+# --- 发给 kimi (bluetooth 工作区) ---
+TAP        = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh send-text '继续'"
 UP         = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh prev-workspace"
 DOWN       = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh next-workspace"
 LEFT       = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh prev-agent"
 RIGHT      = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh next-agent"
-TAP        = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh send-text '继续'"
+
+# --- 发给 grok (temp 工作区) ---
 DOUBLE_TAP = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh esc-esc"
 
-# Power 键映射
+# --- Power 键 (消费者控制) ---
 KEY_VOLUMEUP = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh esc-esc"

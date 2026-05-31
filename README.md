@@ -97,6 +97,28 @@ sudo ./target/release/s10_ringctrl --remap -q
 
 ---
 
+## 长按切换配置
+
+按住 **mode** 键（触摸双击区域）**3 秒**即可在两个配置之间切换，无需重启程序。
+
+```toml
+# s10-ringctrl.toml
+alt_config = "s10-ringctrl-hyprland.toml"
+
+[gesture]
+threshold = 80
+double_tap_ms = 500
+long_press_ms = 3000  # 长按阈值，默认 3 秒
+```
+
+示例搭配：
+- **主配置** (`s10-ringctrl.toml`) — herdr 终端管理器映射
+- **副配置** (`s10-ringctrl-hyprland.toml`) — Hyprland 窗口/工作区映射
+
+长按 mode 键，终端会输出 `Config switched to: s10-ringctrl-hyprland.toml`，立即生效。
+
+---
+
 ## 配置说明
 
 编辑 `s10-ringctrl.toml`：
@@ -109,6 +131,7 @@ consumer = "/dev/input/event23"
 [gesture]
 threshold = 80          # 滑动识别阈值（像素）
 double_tap_ms = 500     # 双击间隔阈值（毫秒）
+long_press_ms = 3000    # 长按切换配置阈值（毫秒）
 
 [mappings]
 UP         = "command:hyprctl dispatch cyclenext prev"
