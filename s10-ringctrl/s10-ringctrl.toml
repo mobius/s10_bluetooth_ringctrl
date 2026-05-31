@@ -7,36 +7,20 @@ threshold = 80
 double_tap_ms = 500
 
 # ============================================
-# 当前激活: herdr 终端管理器映射
+# herdr 终端管理器映射
 # ============================================
-# Agent 列表:
-#   grok  → pane w651fddbbf986d1-1  (cwd: /home/joey/Work/dev/temp)
-#   kimi  → pane w651fddbbf986d1-2  (cwd: /home/joey/Work/dev/temp/bluetooth)
-#
-# 如需切回 Hyprland 全局操作，注释掉下方 [mappings] 整段，
-# 取消注释底部的「方案 B: Hyprland」即可。
+# UP/DOWN    → 切换 herdr workspace
+# LEFT/RIGHT → 切换 herdr agent
+# TAP        → 发送 "继续" 到当前 agent
+# DOUBLE_TAP → 发送两个 Esc 到当前 agent（取消行为）
 # ============================================
 [mappings]
-# --- 发给 kimi (bluetooth 工作区) ---
-TAP        = "command:herdr agent send kimi 'cargo test'"
-UP         = "command:herdr agent send kimi 'cargo build --release'"
-DOWN       = "command:herdr agent send kimi 'cargo run'"
-LEFT       = "command:herdr agent send kimi 'git status'"
-RIGHT      = "command:herdr agent send kimi 'git push'"
+UP         = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh prev-workspace"
+DOWN       = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh next-workspace"
+LEFT       = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh prev-agent"
+RIGHT      = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh next-agent"
+TAP        = "command:herdr agent send $(herdr agent list | jq -r '.result.agents[] | select(.focused==true) | .agent') '继续'"
+DOUBLE_TAP = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh esc-esc"
 
-# --- 发给 grok (temp 工作区) ---
-DOUBLE_TAP = "command:herdr agent send grok 'make test'"
-
-# --- Power 键 (消费者控制) ---
-KEY_VOLUMEUP = "command:herdr agent send kimi 'exit'"
-
-# ============================================
-# 方案 B: Hyprland 全局操作（备用）
-# ============================================
-# [mappings]
-# LEFT = "command:hyprctl dispatch workspace e-1"
-# RIGHT = "command:hyprctl dispatch workspace e+1"
-# DOWN = "command:hyprctl dispatch cyclenext"
-# UP = "command:hyprctl dispatch cyclenext prev"
-# DOUBLE_TAP = "command:hyprctl dispatch togglespecialworkspace"
-# TAP = "text:继续"
+# Power 键映射
+KEY_VOLUMEUP = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh esc-esc"
