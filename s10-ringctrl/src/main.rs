@@ -1,8 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
+use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tracing::{info, warn};
 
 mod action;
@@ -98,27 +100,37 @@ fn main() -> Result<()> {
     thread::spawn(move || {
         match open_device(&touch_path, "touch") {
             Ok(mut dev) => {
-                // Set non-blocking so we can poll for long-press timer
-                set_nonblocking(&dev);
-                info!("Touch thread started (non-blocking)");
-                let mut tracking_since: Option<Instant> = None;
-                let mut long_press_sent = false;
+                info!("Touch thread started");
+                let mut timer_active: Option<Arc<AtomicBool>> = None;
                 loop {
                     match dev.fetch_events() {
                         Ok(events) => {
-                            let mut had_tracking = false;
                             for ev in events {
                                 if let evdev::InputEventKind::AbsAxis(axis) = ev.kind() {
                                     if axis == evdev::AbsoluteAxisType::ABS_MT_TRACKING_ID {
-                                        had_tracking = true;
                                         if ev.value() >= 0 {
-                                            tracking_since = Some(Instant::now());
-                                            long_press_sent = false;
-                                            info!("[touch] TrackingStart");
+                                            // Finger down: start long-press timer
+                                            let active = Arc::new(AtomicBool::new(true));
+                                            timer_active = Some(active.clone());
+                                            let tx = tx_touch.clone();
+                                            let ms = long_press_ms;
+                                            thread::spawn(move || {
+                                                thread::sleep(Duration::from_millis(ms));
+                                                if active.load(Ordering::SeqCst) {
+                                                    info!("[timer] LongPress fired after {}ms", ms);
+                                                    let _ = tx.send(Event::LongPress);
+                                                } else {
+                                                    info!("[timer] LongPress cancelled (finger up before {}ms)", ms);
+                                                }
+                                            });
+                                            info!("[touch] TrackingStart, timer started ({}ms)", ms);
                                         } else {
-                                            tracking_since = None;
-                                            long_press_sent = false;
-                                            info!("[touch] TrackingEnd");
+                                            // Finger up: cancel timer
+                                            if let Some(ref active) = timer_active {
+                                                active.store(false, Ordering::SeqCst);
+                                            }
+                                            timer_active = None;
+                                            info!("[touch] TrackingEnd, timer cancelled");
                                         }
                                     }
                                 }
@@ -126,34 +138,10 @@ fn main() -> Result<()> {
                                     return;
                                 }
                             }
-                            if !had_tracking && tracking_since.is_some() {
-                                info!("[touch] poll while tracking, elapsed={}ms", tracking_since.unwrap().elapsed().as_millis());
-                            }
-                        }
-                        Err(e)
-                            if e.kind() == std::io::ErrorKind::WouldBlock
-                                || e.kind() == std::io::ErrorKind::Other =>
-                        {
-                            if tracking_since.is_some() {
-                                info!("[touch] WouldBlock while tracking, elapsed={}ms", tracking_since.unwrap().elapsed().as_millis());
-                            }
-                            thread::sleep(Duration::from_millis(50));
                         }
                         Err(e) => {
                             warn!("Touch device error: {}", e);
                             thread::sleep(Duration::from_millis(100));
-                        }
-                    }
-
-                    // Check long press
-                    if let Some(start) = tracking_since {
-                        let elapsed = start.elapsed().as_millis();
-                        if !long_press_sent && elapsed >= long_press_ms as u128 {
-                            long_press_sent = true;
-                            info!("[touch] LongPress triggered after {}ms", elapsed);
-                            if tx_touch.send(Event::LongPress).is_err() {
-                                return;
-                            }
                         }
                     }
                 }
@@ -248,16 +236,6 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn set_nonblocking(dev: &evdev::Device) {
-    use std::os::unix::io::AsRawFd;
-    unsafe {
-        let flags = libc::fcntl(dev.as_raw_fd(), libc::F_GETFL, 0);
-        if flags >= 0 {
-            libc::fcntl(dev.as_raw_fd(), libc::F_SETFL, flags | libc::O_NONBLOCK);
-        }
-    }
 }
 
 fn open_device(path: &str, label: &str) -> Result<evdev::Device> {
