@@ -1,5 +1,5 @@
 [Unit]
-Description=S10 Bluetooth Remote Input Remapper
+Description=S10 Bluetooth Remote Input Remapper (Python legacy)
 After=bluetooth.service
 
 [Service]

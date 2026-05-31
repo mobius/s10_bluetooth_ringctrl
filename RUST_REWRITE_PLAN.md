@@ -366,14 +366,18 @@ fn wtype_text(text: &str) {
 
 ## 开发路线图
 
-### Phase 1: Linux 功能对等（2-3 周）
-- [ ] evdev 设备发现 + GRAB
-- [ ] 手势检测状态机移植
-- [ ] TOML 配置 + 热重载
-- [ ] `command:` / `key:` / `text:` / `combo:` 动作执行
-- [ ] wtype / hyprctl 集成
-- [ ] systemd 集成
-- [ ] 与 Python 版本行为完全一致
+### Phase 1: Linux 功能对等 ✅ 已完成
+
+- [x] evdev 设备发现 + GRAB（`evdev` crate，自动检测 `/dev/input/event*`）
+- [x] 手势检测状态机移植（滑动/单击/双击，6 个单元测试通过）
+- [x] TOML 配置加载与默认生成（`serde` + `toml`）
+- [x] `command:` / `key:` / `text:` / `combo:` 动作执行（`wtype` + `std::process::Command`）
+- [x] Hyprland 环境变量自动注入（`HYPRLAND_INSTANCE_SIGNATURE`）
+- [x] 双线程并发读取（修复顺序轮询导致的 consumer 事件丢失）
+- [x] 手势键名规范化（`Gesture::as_str()` 匹配配置 `UPPER_SNAKE_CASE`）
+- [ ] 配置热重载（文件监听，非必须）
+- [ ] systemd 服务模板更新为 Rust 二进制路径
+- [ ] 与 Python 版本行为 100% 一致（待用户长期使用验证）
 
 ### Phase 2: Windows 支持（3-4 周）
 - [ ] Raw Input 设备枚举
