@@ -12,6 +12,12 @@ export HYPRLAND_INSTANCE_SIGNATURE="${HYPRLAND_INSTANCE_SIGNATURE:-$(ls /run/use
 # herdr socket path (needed when running under sudo)
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/1000}"
 
+# herdr binary lives in ~/.local/bin which sudo PATH omits
+export PATH="$PATH:/home/joey/.local/bin"
+
+# herdr socket is under ~/.config/herdr/; sudo changes HOME to /root
+export HOME="${HOME:-/home/joey}"
+
 # Wayland display for wtype
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}"
 

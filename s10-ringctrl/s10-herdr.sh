@@ -1,10 +1,16 @@
 #!/bin/bash
 # S10 → herdr 切换助手脚本
-# 用法: s10-herdr.sh <next-workspace|prev-workspace|next-agent|prev-agent|esc-esc>
+# 用法: s10-herdr.sh <next-workspace|prev-workspace|next-agent|prev-agent|esc-esc|send-text>
 
 set -e
 
-# herdr socket lives in user's XDG_RUNTIME_DIR; sudo drops this.
+# herdr is installed in ~/.local/bin; sudo PATH does not include it.
+export PATH="$PATH:/home/joey/.local/bin"
+
+# herdr socket lives in ~/.config/herdr/; sudo changes HOME to /root.
+export HOME="${HOME:-/home/joey}"
+
+# herdr socket also needs XDG_RUNTIME_DIR.
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/1000}"
 
 CMD="${1:-}"
@@ -101,11 +107,27 @@ double_esc() {
     herdr agent send "$agent" "$esc" 2>/dev/null
 }
 
+send_text() {
+    local agent text
+    text="${2:-}"
+    if [[ -z "$text" ]]; then
+        echo "Usage: $0 send-text <text>" >&2
+        exit 1
+    fi
+    agent=$(herdr agent list 2>/dev/null | jq -r '.result.agents[] | select(.focused==true) | .agent')
+    if [[ -z "$agent" ]]; then
+        echo "herdr: no focused agent found" >&2
+        exit 1
+    fi
+    herdr agent send "$agent" "$text" 2>/dev/null
+}
+
 case "$CMD" in
     next-workspace) next_workspace ;;
     prev-workspace) prev_workspace ;;
     next-agent)     next_agent ;;
     prev-agent)     prev_agent ;;
     esc-esc)        double_esc ;;
-    *) echo "Usage: $0 {next-workspace|prev-workspace|next-agent|prev-agent|esc-esc}"; exit 1 ;;
+    send-text)      send_text "$@" ;;
+    *) echo "Usage: $0 {next-workspace|prev-workspace|next-agent|prev-agent|esc-esc|send-text <text>}"; exit 1 ;;
 esac

@@ -193,9 +193,17 @@ cd s10-ringctrl
 ./run.sh --remap
 ```
 
-`run.sh` 会自动保留 `XDG_RUNTIME_DIR`（herdr socket 路径）和 `HYPRLAND_INSTANCE_SIGNATURE`。
+`run.sh` 会自动保留四个关键环境变量：
+- `PATH` — 包含 `~/.local/bin`（herdr 安装位置）
+- `HOME` — herdr 的 socket 文件在 `~/.config/herdr/` 下，`sudo` 默认把 `HOME` 改成 `/root`，必须保留原用户家目录
+- `XDG_RUNTIME_DIR` — herdr 运行时目录
+- `HYPRLAND_INSTANCE_SIGNATURE` — Hyprland 通信标识
 
-> ⚠️ `sudo` 默认会丢弃用户环境变量，导致 `herdr` 命令找不到 server。必须用 `sudo -E` 或 wrapper 脚本。
+> ⚠️ 如果手动用 `sudo` 启动而非 `run.sh`，需要显式保留环境变量：
+> ```bash
+> sudo -E HOME=/home/joey PATH="$PATH" XDG_RUNTIME_DIR=/run/user/1000 \
+>     ./target/release/s10_ringctrl --remap
+> ```
 
 ---
 

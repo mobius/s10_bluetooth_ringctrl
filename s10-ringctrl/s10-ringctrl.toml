@@ -19,7 +19,7 @@ UP         = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.
 DOWN       = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh next-workspace"
 LEFT       = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh prev-agent"
 RIGHT      = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh next-agent"
-TAP        = "command:herdr agent send $(herdr agent list | jq -r '.result.agents[] | select(.focused==true) | .agent') '继续'"
+TAP        = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh send-text '继续'"
 DOUBLE_TAP = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh esc-esc"
 
 # Power 键映射
