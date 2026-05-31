@@ -16,7 +16,7 @@ LEFT       = "command:hyprctl dispatch workspace e-1"
 RIGHT      = "command:hyprctl dispatch workspace e+1"
 DOWN       = "command:hyprctl dispatch cyclenext"
 UP         = "command:hyprctl dispatch cyclenext prev"
-DOUBLE_TAP = "command:hyprctl dispatch togglespecialworkspace"
+# DOUBLE_TAP 由程序内部处理（切换配置），此处无需配置
 TAP        = "text:继续"
 
 # Power 键映射

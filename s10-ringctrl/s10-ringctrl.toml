@@ -9,7 +9,7 @@ consumer = "/dev/input/event23"
 [gesture]
 threshold = 80
 double_tap_ms = 500
-long_press_ms = 3000
+long_press_ms = 1000
 
 [mappings]
 # --- 发给 kimi (bluetooth 工作区) ---
@@ -19,8 +19,8 @@ DOWN       = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.
 LEFT       = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh prev-agent"
 RIGHT      = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh next-agent"
 
-# --- 发给 grok (temp 工作区) ---
-DOUBLE_TAP = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh esc-esc"
+# --- 双击 Mode 键切换配置 ---
+# DOUBLE_TAP 由程序内部处理，此处无需配置
 
 # --- Power 键 (消费者控制) ---
 KEY_VOLUMEUP = "command:/home/joey/Work/dev/temp/bluetooth/s10-ringctrl/s10-herdr.sh esc-esc"

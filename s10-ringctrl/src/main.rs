@@ -13,7 +13,7 @@ mod gesture;
 
 use action::ActionExecutor;
 use config::Config;
-use gesture::{GestureDetector, TouchEvent};
+use gesture::{Gesture, GestureDetector, TouchEvent};
 
 #[derive(Parser, Debug)]
 #[command(name = "s10-ringctrl")]
@@ -82,10 +82,8 @@ fn main() -> Result<()> {
     info!("Touch device: {}", config.device.touch);
     info!("Consumer device: {}", config.device.consumer);
     info!(
-        "Threshold: {}, Double-tap: {}ms, Long-press: {}ms",
-        config.gesture.threshold,
-        config.gesture.double_tap_ms,
-        config.gesture.long_press_ms
+        "Threshold: {}, Double-tap: {}ms",
+        config.gesture.threshold, config.gesture.double_tap_ms
     );
     info!("Mode: {}", if cli.remap { "REMAP" } else { "DEBUG" });
     if let Some(ref alt) = config.alt_config {
@@ -201,32 +199,43 @@ fn main() -> Result<()> {
                         long_press_active = false;
                     }
                 }
-                handle_touch_event(&ev, &mut detector, cli.remap, &config, &executor);
+
+                if let Some(gesture) = handle_touch_event(&ev, &mut detector) {
+                    if gesture == Gesture::DoubleTap && config.alt_config.is_some() {
+                        // Double-tap mode: swap config profile
+                        let next_path = if active_config_path == primary_config_path {
+                            config.alt_config.clone().unwrap()
+                        } else {
+                            primary_config_path.clone()
+                        };
+                        match Config::load(&next_path) {
+                            Ok(new_config) => {
+                                config = new_config;
+                                active_config_path = next_path;
+                                info!("Config switched to: {}", active_config_path);
+                            }
+                            Err(e) => {
+                                warn!("Failed to load config '{}': {}", next_path, e);
+                            }
+                        }
+                    } else {
+                        let name = gesture.as_str();
+                        if cli.remap {
+                            if let Some(action) = config.get_mapping(name) {
+                                executor.execute(action, name);
+                            }
+                        } else {
+                            println!("[DEBUG] >>> {} DETECTED <<<", name);
+                        }
+                    }
+                }
             }
             Ok(Event::Consumer(ev)) => {
                 handle_consumer_event(&ev, cli.remap, &config, &executor);
             }
             Ok(Event::LongPress) => {
                 long_press_active = true;
-                if let Some(ref alt) = config.alt_config {
-                    let next_path = if active_config_path == primary_config_path {
-                        alt.clone()
-                    } else {
-                        primary_config_path.clone()
-                    };
-                    match Config::load(&next_path) {
-                        Ok(new_config) => {
-                            config = new_config;
-                            active_config_path = next_path;
-                            info!("Config switched to: {}", active_config_path);
-                        }
-                        Err(e) => {
-                            warn!("Failed to load config '{}': {}", next_path, e);
-                        }
-                    }
-                } else {
-                    info!("Long press detected, but no alt_config set.");
-                }
+                info!("Long press detected (no action configured).");
             }
             Err(_) => {
                 info!("Event channel closed, exiting.");
@@ -252,13 +261,12 @@ fn open_device(path: &str, label: &str) -> Result<evdev::Device> {
     Ok(dev)
 }
 
+/// Parse a touch event into the gesture detector. Returns `Some(Gesture)` when
+/// a gesture is resolved (on finger lift).
 fn handle_touch_event(
     ev: &evdev::InputEvent,
     detector: &mut GestureDetector,
-    remap: bool,
-    config: &Config,
-    executor: &ActionExecutor,
-) {
+) -> Option<Gesture> {
     use evdev::AbsoluteAxisType;
 
     match ev.kind() {
@@ -266,17 +274,9 @@ fn handle_touch_event(
             AbsoluteAxisType::ABS_MT_TRACKING_ID => {
                 if ev.value() >= 0 {
                     detector.feed(TouchEvent::TrackingStart);
+                    None
                 } else {
-                    if let Some(gesture) = detector.feed(TouchEvent::TrackingEnd) {
-                        let name = gesture.as_str();
-                        if remap {
-                            if let Some(action) = config.get_mapping(name) {
-                                executor.execute(action, name);
-                            }
-                        } else {
-                            println!("[DEBUG] >>> {} DETECTED <<<", name);
-                        }
-                    }
+                    detector.feed(TouchEvent::TrackingEnd)
                 }
             }
             AbsoluteAxisType::ABS_MT_POSITION_X | AbsoluteAxisType::ABS_X => {
@@ -284,16 +284,18 @@ fn handle_touch_event(
                     x: Some(ev.value()),
                     y: None,
                 });
+                None
             }
             AbsoluteAxisType::ABS_MT_POSITION_Y | AbsoluteAxisType::ABS_Y => {
                 detector.feed(TouchEvent::Position {
                     x: None,
                     y: Some(ev.value()),
                 });
+                None
             }
-            _ => {}
+            _ => None,
         },
-        _ => {}
+        _ => None,
     }
 }
 
