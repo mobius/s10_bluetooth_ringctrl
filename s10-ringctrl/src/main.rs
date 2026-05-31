@@ -1,5 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
+use std::sync::mpsc;
+use std::thread;
 use tracing::{info, warn};
 
 mod action;
@@ -8,7 +10,7 @@ mod gesture;
 
 use action::ActionExecutor;
 use config::Config;
-use gesture::{Gesture, GestureDetector, TouchEvent};
+use gesture::{GestureDetector, TouchEvent};
 
 #[derive(Parser, Debug)]
 #[command(name = "s10-ringctrl")]
@@ -39,6 +41,11 @@ struct Cli {
     quiet: bool,
 }
 
+enum DeviceType {
+    Touch,
+    Consumer,
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -67,12 +74,69 @@ fn main() -> Result<()> {
     info!("S10 RingCtrl starting...");
     info!("Touch device: {}", config.device.touch);
     info!("Consumer device: {}", config.device.consumer);
-    info!("Threshold: {}, Double-tap: {}ms", config.gesture.threshold, config.gesture.double_tap_ms);
+    info!(
+        "Threshold: {}, Double-tap: {}ms",
+        config.gesture.threshold, config.gesture.double_tap_ms
+    );
     info!("Mode: {}", if cli.remap { "REMAP" } else { "DEBUG" });
 
-    // Open devices
-    let mut touch_dev = open_device(&config.device.touch, "touch")?;
-    let mut consumer_dev = open_device(&config.device.consumer, "consumer")?;
+    let (tx, rx) = mpsc::channel::<(DeviceType, evdev::InputEvent)>();
+
+    let touch_path = config.device.touch.clone();
+    let tx_touch = tx.clone();
+    thread::spawn(move || {
+        match open_device(&touch_path, "touch") {
+            Ok(mut dev) => {
+                info!("Touch thread started");
+                loop {
+                    match dev.fetch_events() {
+                        Ok(events) => {
+                            for ev in events {
+                                if tx_touch.send((DeviceType::Touch, ev)).is_err() {
+                                    return;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Touch device error: {}", e);
+                            thread::sleep(std::time::Duration::from_millis(100));
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Failed to open touch device: {}", e);
+            }
+        }
+    });
+
+    let consumer_path = config.device.consumer.clone();
+    let tx_consumer = tx;
+    thread::spawn(move || {
+        match open_device(&consumer_path, "consumer") {
+            Ok(mut dev) => {
+                info!("Consumer thread started");
+                loop {
+                    match dev.fetch_events() {
+                        Ok(events) => {
+                            for ev in events {
+                                if tx_consumer.send((DeviceType::Consumer, ev)).is_err() {
+                                    return;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Consumer device error: {}", e);
+                            thread::sleep(std::time::Duration::from_millis(100));
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Failed to open consumer device: {}", e);
+            }
+        }
+    });
 
     let mut detector = GestureDetector::new(config.gesture.threshold, config.gesture.double_tap_ms);
     let executor = ActionExecutor::new();
@@ -80,17 +144,21 @@ fn main() -> Result<()> {
     info!("Capturing events. Press Ctrl+C to stop.");
 
     loop {
-        if let Ok(events) = touch_dev.fetch_events() {
-            for ev in events {
+        match rx.recv() {
+            Ok((DeviceType::Touch, ev)) => {
                 handle_touch_event(&ev, &mut detector, cli.remap, &config, &executor);
             }
-        }
-        if let Ok(events) = consumer_dev.fetch_events() {
-            for ev in events {
+            Ok((DeviceType::Consumer, ev)) => {
                 handle_consumer_event(&ev, cli.remap, &config, &executor);
+            }
+            Err(_) => {
+                info!("Event channel closed, exiting.");
+                break;
             }
         }
     }
+
+    Ok(())
 }
 
 fn open_device(path: &str, label: &str) -> Result<evdev::Device> {
@@ -117,33 +185,37 @@ fn handle_touch_event(
     use evdev::AbsoluteAxisType;
 
     match ev.kind() {
-        evdev::InputEventKind::AbsAxis(axis) => {
-            match axis {
-                AbsoluteAxisType::ABS_MT_TRACKING_ID => {
-                    if ev.value() >= 0 {
-                        detector.feed(TouchEvent::TrackingStart);
-                    } else {
-                        if let Some(gesture) = detector.feed(TouchEvent::TrackingEnd) {
-                            let name = format!("{:?}", gesture);
-                            if remap {
-                                if let Some(action) = config.get_mapping(&name) {
-                                    executor.execute(action, &name);
-                                }
-                            } else {
-                                println!("[DEBUG] >>> {} DETECTED <<<", name);
+        evdev::InputEventKind::AbsAxis(axis) => match axis {
+            AbsoluteAxisType::ABS_MT_TRACKING_ID => {
+                if ev.value() >= 0 {
+                    detector.feed(TouchEvent::TrackingStart);
+                } else {
+                    if let Some(gesture) = detector.feed(TouchEvent::TrackingEnd) {
+                        let name = format!("{:?}", gesture);
+                        if remap {
+                            if let Some(action) = config.get_mapping(&name) {
+                                executor.execute(action, &name);
                             }
+                        } else {
+                            println!("[DEBUG] >>> {} DETECTED <<<", name);
                         }
                     }
                 }
-                AbsoluteAxisType::ABS_MT_POSITION_X | AbsoluteAxisType::ABS_X => {
-                    detector.feed(TouchEvent::Position { x: Some(ev.value()), y: None });
-                }
-                AbsoluteAxisType::ABS_MT_POSITION_Y | AbsoluteAxisType::ABS_Y => {
-                    detector.feed(TouchEvent::Position { x: None, y: Some(ev.value()) });
-                }
-                _ => {}
             }
-        }
+            AbsoluteAxisType::ABS_MT_POSITION_X | AbsoluteAxisType::ABS_X => {
+                detector.feed(TouchEvent::Position {
+                    x: Some(ev.value()),
+                    y: None,
+                });
+            }
+            AbsoluteAxisType::ABS_MT_POSITION_Y | AbsoluteAxisType::ABS_Y => {
+                detector.feed(TouchEvent::Position {
+                    x: None,
+                    y: Some(ev.value()),
+                });
+            }
+            _ => {}
+        },
         _ => {}
     }
 }
