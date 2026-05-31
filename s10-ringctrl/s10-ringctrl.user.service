@@ -1,0 +1,12 @@
+[Unit]
+Description=S10 Bluetooth Remote Input Remapper
+After=bluetooth.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/s10-ringctrl --remap -c /etc/s10-ringctrl.toml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

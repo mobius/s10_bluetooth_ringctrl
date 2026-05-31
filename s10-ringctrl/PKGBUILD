@@ -1,0 +1,34 @@
+# Maintainer: mobius <your.email@example.com>
+pkgname=s10-ringctrl-git
+pkgver=0.1.0.r0.g7f72f11
+pkgrel=1
+pkgdesc="S10 Bluetooth Remote Input Remapper for Linux (Hyprland/Wayland)"
+arch=('x86_64')
+url="https://github.com/mobius/s10_bluetooth_ringctrl"
+license=('MIT')
+depends=('wtype')
+makedepends=('git' 'rust' 'cargo')
+provides=('s10-ringctrl')
+conflicts=('s10-ringctrl')
+source=("$pkgname::git+$url.git#branch=rust_dev")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    git describe --long --tags --always 2>/dev/null || echo "0.1.0.r$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
+}
+
+build() {
+    cd "$pkgname/s10-ringctrl"
+    cargo build --release
+}
+
+package() {
+    cd "$pkgname/s10-ringctrl"
+    install -Dm755 target/release/s10_ringctrl "$pkgdir/usr/bin/s10-ringctrl"
+    install -Dm755 s10-herdr.sh "$pkgdir/usr/bin/s10-herdr.sh"
+    install -Dm644 s10-ringctrl.toml "$pkgdir/etc/s10-ringctrl.toml"
+    install -Dm644 s10-ringctrl-hyprland.toml "$pkgdir/etc/s10-ringctrl-hyprland.toml"
+    install -Dm644 s10-ringctrl.user.service "$pkgdir/usr/lib/systemd/user/s10-ringctrl.service"
+    install -Dm644 99-s10-ringctrl.rules "$pkgdir/usr/lib/udev/rules.d/99-s10-ringctrl.rules"
+}
