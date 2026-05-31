@@ -12,3 +12,8 @@ s10_keys.txt
 # IDE
 .vscode/
 .idea/
+
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
