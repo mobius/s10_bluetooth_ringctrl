@@ -8,7 +8,7 @@ consumer = "/dev/input/event23"
 
 [gesture]
 threshold = 80
-double_tap_ms = 500
+double_tap_ms = 1000
 long_press_ms = 3000
 
 [mappings]

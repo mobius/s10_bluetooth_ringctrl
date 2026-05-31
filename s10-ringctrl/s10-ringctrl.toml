@@ -8,8 +8,8 @@ consumer = "/dev/input/event23"
 
 [gesture]
 threshold = 80
-double_tap_ms = 500
-long_press_ms = 1000
+double_tap_ms = 1000
+long_press_ms = 3000
 
 [mappings]
 # --- 发给 kimi (bluetooth 工作区) ---
