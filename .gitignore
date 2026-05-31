@@ -1,0 +1,14 @@
+# Temporary / debug files
+*.pcap
+*.log
+__pycache__/
+*.pyc
+*.pyo
+
+# Runtime artifacts
+s10_keys.txt
+/tmp/s10_*
+
+# IDE
+.vscode/
+.idea/

@@ -1,0 +1,21 @@
+{
+  "device_consumer": "/dev/input/event23",
+  "device_touch": "/dev/input/event22",
+  "mappings_direction": {
+    "UP":         "command:hyprctl dispatch cyclenext prev",
+    "DOWN":       "command:hyprctl dispatch cyclenext",
+    "LEFT":       "command:hyprctl dispatch workspace e-1",
+    "RIGHT":      "command:hyprctl dispatch workspace e+1",
+    "TAP":        "text:继续\n",
+    "DOUBLE_TAP": "command:hyprctl dispatch togglespecialworkspace"
+  },
+  "mappings_consumer": {
+    "KEY_VOLUMEUP": "command:hyprctl dispatch exec 'pamixer -i 5 && notify-send \"Volume +\"'"
+  },
+  "swipe": {
+    "threshold": 80,
+    "double_tap_ms": 500
+  },
+  "grab": true,
+  "verbose": true
+}

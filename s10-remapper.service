@@ -1,0 +1,15 @@
+[Unit]
+Description=S10 Bluetooth Remote Input Remapper
+After=bluetooth.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/joey/Work/dev/temp/bluetooth/s10-remapper.py -c /home/joey/Work/dev/temp/bluetooth/s10-remapper.json
+Restart=always
+RestartSec=5
+Environment="DISPLAY=:1"
+Environment="WAYLAND_DISPLAY=wayland-1"
+Environment="XDG_CURRENT_DESKTOP=Hyprland"
+
+[Install]
+WantedBy=multi-user.target
