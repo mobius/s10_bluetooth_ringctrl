@@ -25,7 +25,7 @@ struct Cli {
     touch: Option<String>,
 
     /// Consumer control input device path
-    #[arg(short, long)]
+    #[arg(long)]
     consumer: Option<String>,
 
     /// Generate default config file and exit

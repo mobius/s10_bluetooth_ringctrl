@@ -7,32 +7,36 @@ threshold = 80
 double_tap_ms = 500
 
 # ============================================
-# 方案 A: Hyprland 全局操作（当前默认）
+# 当前激活: herdr 终端管理器映射
+# ============================================
+# Agent 列表:
+#   grok  → pane w651fddbbf986d1-1  (cwd: /home/joey/Work/dev/temp)
+#   kimi  → pane w651fddbbf986d1-2  (cwd: /home/joey/Work/dev/temp/bluetooth)
+#
+# 如需切回 Hyprland 全局操作，注释掉下方 [mappings] 整段，
+# 取消注释底部的「方案 B: Hyprland」即可。
 # ============================================
 [mappings]
-LEFT = "command:hyprctl dispatch workspace e-1"
-RIGHT = "command:hyprctl dispatch workspace e+1"
-DOWN = "command:hyprctl dispatch cyclenext"
-UP = "command:hyprctl dispatch cyclenext prev"
-DOUBLE_TAP = "command:hyprctl dispatch togglespecialworkspace"
-TAP = "text:继续"
+# --- 发给 kimi (bluetooth 工作区) ---
+TAP        = "command:herdr agent send kimi 'cargo test'"
+UP         = "command:herdr agent send kimi 'cargo build --release'"
+DOWN       = "command:herdr agent send kimi 'cargo run'"
+LEFT       = "command:herdr agent send kimi 'git status'"
+RIGHT      = "command:herdr agent send kimi 'git push'"
+
+# --- 发给 grok (temp 工作区) ---
+DOUBLE_TAP = "command:herdr agent send grok 'make test'"
+
+# --- Power 键 (消费者控制) ---
+KEY_VOLUMEUP = "command:herdr agent send kimi 'exit'"
 
 # ============================================
-# 方案 B: herdr 终端管理器（发给特定 pane/agent）
-# 取消下面注释并注释掉上方映射即可切换
+# 方案 B: Hyprland 全局操作（备用）
 # ============================================
 # [mappings]
-# # 发给指定 herdr agent（名称稳定，推荐）
-# TAP        = "command:herdr agent send grok '继续'"
-# DOUBLE_TAP = "command:herdr agent send grok 'make test'"
-# UP         = "command:herdr agent send grok 'git push'"
-# DOWN       = "command:herdr agent send grok 'git pull'"
-# LEFT       = "command:herdr agent send kimi 'npm run dev'"
-# RIGHT      = "command:herdr agent send kimi 'cargo build'"
-#
-# # 发给指定 pane（pane_id 重启会变，不推荐硬编码）
-# # LEFT  = "command:herdr pane send-text w651fddbbf986d1-1 'npm run dev'"
-# # RIGHT = "command:herdr pane send-keys w651fddbbf986d1-1 Control_L c"
-#
-# # Power 键映射
-# KEY_VOLUMEUP = "command:herdr agent send grok 'exit'"
+# LEFT = "command:hyprctl dispatch workspace e-1"
+# RIGHT = "command:hyprctl dispatch workspace e+1"
+# DOWN = "command:hyprctl dispatch cyclenext"
+# UP = "command:hyprctl dispatch cyclenext prev"
+# DOUBLE_TAP = "command:hyprctl dispatch togglespecialworkspace"
+# TAP = "text:继续"
