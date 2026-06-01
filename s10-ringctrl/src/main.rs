@@ -59,15 +59,24 @@ fn main() -> Result<()> {
     }
 
     let primary_config_path = cli.config.clone();
-    let mut active_config_path = primary_config_path.clone();
+    let mut profiles = vec![primary_config_path.clone()];
+    if let Some(ref alt) = config.alt_config {
+        profiles.push(alt.clone());
+    }
+    for alt in &config.alt_configs {
+        if !profiles.contains(alt) {
+            profiles.push(alt.clone());
+        }
+    }
+    let mut profile_index = 0usize;
 
     info!("S10 RingCtrl starting...");
     info!("Touch device: {}", config.device.touch);
     info!("Consumer device: {}", config.device.consumer);
     info!("Threshold: {}", config.gesture.threshold);
     info!("Mode: {}", if cli.remap { "REMAP" } else { "DEBUG" });
-    if let Some(ref alt) = config.alt_config {
-        info!("Alt config: {}", alt);
+    if profiles.len() > 1 {
+        info!("Profiles ({}): {:?}", profiles.len(), profiles);
     }
 
     let (tx, rx) = mpsc::channel::<Event>();
@@ -140,17 +149,13 @@ fn main() -> Result<()> {
                     if gesture == Gesture::Tap {
                         let (_x, y) = detector.last_position();
                         let is_mod = y.map_or(false, |v| v > 600);
-                        if is_mod && config.alt_config.is_some() {
-                            let next_path = if active_config_path == primary_config_path {
-                                config.alt_config.clone().unwrap()
-                            } else {
-                                primary_config_path.clone()
-                            };
+                        if is_mod && profiles.len() > 1 {
+                            profile_index = (profile_index + 1) % profiles.len();
+                            let next_path = profiles[profile_index].clone();
                             match Config::load(&next_path) {
                                 Ok(new_config) => {
                                     config = new_config;
-                                    active_config_path = next_path;
-                                    info!("Config switched to: {}", active_config_path);
+                                    info!("Config switched to: {} ({}/{})", next_path, profile_index + 1, profiles.len());
                                 }
                                 Err(e) => {
                                     warn!("Failed to load config '{}': {}", next_path, e);

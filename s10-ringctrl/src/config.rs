@@ -11,9 +11,12 @@ pub struct Config {
     pub gesture: GestureConfig,
     #[serde(default)]
     pub mappings: HashMap<String, String>,
-    /// Path to alternative config file (switched on tap/mod key)
+    /// Path to alternative config file (legacy, use alt_configs)
     #[serde(default)]
     pub alt_config: Option<String>,
+    /// List of alternative config files cycled on Mod tap
+    #[serde(default)]
+    pub alt_configs: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +61,7 @@ impl Default for Config {
             gesture: default_gesture(),
             mappings,
             alt_config: None,
+            alt_configs: vec![],
         }
     }
 }
@@ -118,5 +122,17 @@ UP = "command:hyprctl"
 "#;
         let parsed: Config = toml::from_str(toml_str).unwrap();
         assert_eq!(parsed.alt_config, Some("s10-ringctrl-hyprland.toml".to_string()));
+    }
+
+    #[test]
+    fn test_alt_configs_parsing() {
+        let toml_str = r#"
+alt_configs = ["s10-ringctrl-hyprland.toml", "s10-ringctrl-gaming.toml"]
+
+[gesture]
+threshold = 80
+"#;
+        let parsed: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(parsed.alt_configs, vec!["s10-ringctrl-hyprland.toml", "s10-ringctrl-gaming.toml"]);
     }
 }

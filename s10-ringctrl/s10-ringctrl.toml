@@ -1,4 +1,5 @@
-alt_config = "s10-ringctrl-hyprland.toml"
+alt_configs = ["s10-ringctrl-hyprland.toml"]
+# alt_configs = ["s10-ringctrl-hyprland.toml", "s10-ringctrl-gaming.toml"]
 
 [device]
 touch = "/dev/input/event22"
@@ -8,8 +9,8 @@ consumer = "/dev/input/event23"
 threshold = 80
 
 [mappings]
-UP = "command:./s10-herdr.sh next-workspace"
-DOWN = "command:./s10-herdr.sh prev-workspace"
+UP = "command:./s10-herdr.sh prev-workspace"
+DOWN = "command:./s10-herdr.sh next-workspace"
 LEFT = "command:./s10-herdr.sh next-agent"
 RIGHT = "command:./s10-herdr.sh prev-agent"
 TAP = "text:继续"

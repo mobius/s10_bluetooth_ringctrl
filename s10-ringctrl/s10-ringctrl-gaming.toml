@@ -8,8 +8,9 @@ consumer = "/dev/input/event23"
 threshold = 80
 
 [mappings]
-UP = "command:hyprctl dispatch workspace e-1"
-DOWN = "command:hyprctl dispatch workspace e+1"
-LEFT = "key:SHIFT+Tab"
-RIGHT = "key:Tab"
+UP = "key:W"
+DOWN = "key:S"
+LEFT = "key:A"
+RIGHT = "key:D"
+TAP = "key:Space"
 POWER = "key:Escape"
