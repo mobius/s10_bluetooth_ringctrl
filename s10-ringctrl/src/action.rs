@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 use std::process::Command;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 use tracing::{debug, error, info, warn};
 
 /// Action executor supporting command/key/text/combo
 pub struct ActionExecutor {
     wtype_available: bool,
     hypr_env: HashMap<String, String>,
+    repeat_id: Arc<Mutex<u64>>,
 }
 
 impl ActionExecutor {
@@ -15,15 +19,25 @@ impl ActionExecutor {
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false);
+        let ydotool_available = Command::new("which")
+            .arg("ydotool")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
         
         if wtype_available {
             info!("wtype found, key/text injection enabled");
         } else {
             warn!("wtype not found, key/text injection disabled. Install: sudo pacman -S wtype");
         }
+        if ydotool_available {
+            info!("ydotool found, mouse injection enabled");
+        } else {
+            warn!("ydotool not found, mouse injection disabled. Install: sudo pacman -S ydotool");
+        }
 
         let hypr_env = discover_hypr_env();
-        Self { wtype_available, hypr_env }
+        Self { wtype_available, hypr_env, repeat_id: Arc::new(Mutex::new(0)) }
     }
 
     pub fn execute(&self, action: &str, source: &str) {
@@ -43,9 +57,52 @@ impl ActionExecutor {
         } else if action.starts_with("combo:") {
             let combo = &action[6..];
             self.type_combo(combo, source);
+        } else if action.starts_with("mouse:") {
+            let btn = &action[6..];
+            self.type_mouse(btn, source);
         } else {
             warn!("Unknown action format: {}", action);
         }
+    }
+
+    /// Repeatedly emit a key (e.g. WASD in gaming mode).
+    /// count: how many times to send (e.g. 20 from "key:20W").
+    /// A new call auto-cancels the previous repeat.
+    pub fn repeat_key(&self, key: &str, count: u32, source: &str) {
+        if !self.wtype_available {
+            warn!("[wtype not found] cannot repeat key: {}", key);
+            return;
+        }
+        let wtype_name = if key.starts_with("KEY_") { key[4..].to_string() } else { key.to_string() };
+
+        let mut guard = self.repeat_id.lock().unwrap();
+        *guard += 1;
+        let my_id = *guard;
+        drop(guard);
+
+        let env = self.hypr_env.clone();
+        let repeat_id = self.repeat_id.clone();
+        let source = source.to_string();
+
+        thread::spawn(move || {
+            for i in 0..count {
+                if *repeat_id.lock().unwrap() != my_id { break; }
+                let mut cmd = Command::new("wtype");
+                cmd.envs(&env);
+                cmd.arg(&wtype_name);
+                let _ = cmd.output();
+                if i == 0 {
+                    info!("[wtype repeat] {} -> {} (x{})", source, wtype_name, count);
+                }
+                thread::sleep(Duration::from_millis(25));
+            }
+        });
+    }
+
+    /// Cancel any ongoing repeat_key sequence.
+    pub fn stop_repeat(&self) {
+        let mut guard = self.repeat_id.lock().unwrap();
+        *guard += 1;
     }
 
     fn run_command(&self, cmd: &str, source: &str) {
@@ -82,16 +139,10 @@ impl ActionExecutor {
         let parts: Vec<&str> = text.split('\n').collect();
         for (i, part) in parts.iter().enumerate() {
             if !part.is_empty() {
-                let _ = Command::new("wtype")
-                    .arg(part)
-                    .envs(&self.hypr_env)
-                    .output();
+                let _ = self.wtype_cmd().arg(part).output();
             }
             if i < parts.len() - 1 || text.ends_with("\\n") {
-                let _ = Command::new("wtype")
-                    .args(["-k", "Return"])
-                    .envs(&self.hypr_env)
-                    .output();
+                let _ = self.wtype_cmd().args(["-k", "Return"]).output();
             }
         }
         info!("[wtype text] {} -> {}", source, text.replace("\\n", "[Enter]"));
@@ -103,11 +154,31 @@ impl ActionExecutor {
             return;
         }
         let wtype_name = if key.starts_with("KEY_") { &key[4..] } else { key };
-        let _ = Command::new("wtype")
-            .arg(wtype_name)
-            .envs(&self.hypr_env)
-            .output();
+        let _ = self.wtype_cmd().arg(wtype_name).output();
         info!("[wtype key] {} -> {}", source, wtype_name);
+    }
+
+    fn type_mouse(&self, btn: &str, source: &str) {
+        let code = match btn {
+            "left" | "Left" | "LEFT" => "0xC0",
+            "right" | "Right" | "RIGHT" => "0xC1",
+            "middle" | "Middle" | "MIDDLE" => "0xC2",
+            _ => {
+                warn!("Unknown mouse button: {}", btn);
+                return;
+            }
+        };
+        let mut cmd = if let Some(user) = std::env::var("SUDO_USER").ok() {
+            let mut c = Command::new("sudo");
+            c.arg("-u").arg(&user).arg("-E").arg("ydotool");
+            c
+        } else {
+            Command::new("ydotool")
+        };
+        cmd.arg("click").arg(code);
+        cmd.envs(&self.hypr_env);
+        let _ = cmd.output();
+        info!("[ydotool] {} -> {}", source, btn);
     }
 
     fn type_combo(&self, combo: &str, source: &str) {
@@ -125,11 +196,21 @@ impl ActionExecutor {
             args.push("-k");
             args.push(k.as_str());
         }
-        let _ = Command::new("wtype")
-            .args(&args)
-            .envs(&self.hypr_env)
-            .output();
+        let _ = self.wtype_cmd().args(&args).output();
         info!("[wtype combo] {} -> {}", source, combo);
+    }
+
+    fn wtype_cmd(&self) -> Command {
+        if let Some(user) = std::env::var("SUDO_USER").ok() {
+            let mut cmd = Command::new("sudo");
+            cmd.arg("-u").arg(&user).arg("-E").arg("wtype");
+            cmd.envs(&self.hypr_env);
+            cmd
+        } else {
+            let mut cmd = Command::new("wtype");
+            cmd.envs(&self.hypr_env);
+            cmd
+        }
     }
 }
 

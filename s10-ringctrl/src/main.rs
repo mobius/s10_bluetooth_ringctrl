@@ -84,57 +84,13 @@ fn main() -> Result<()> {
     let touch_path = config.device.touch.clone();
     let tx_touch = tx.clone();
     thread::spawn(move || {
-        match open_device(&touch_path, "touch") {
-            Ok(mut dev) => {
-                info!("Touch thread started");
-                loop {
-                    match dev.fetch_events() {
-                        Ok(events) => {
-                            for ev in events {
-                                if tx_touch.send(Event::Touch(ev)).is_err() {
-                                    return;
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            warn!("Touch device error: {}", e);
-                            thread::sleep(std::time::Duration::from_millis(100));
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                warn!("Failed to open touch device: {}", e);
-            }
-        }
+        run_device_loop(&touch_path, "touch", tx_touch, Event::Touch);
     });
 
     let consumer_path = config.device.consumer.clone();
     let tx_consumer = tx;
     thread::spawn(move || {
-        match open_device(&consumer_path, "consumer") {
-            Ok(mut dev) => {
-                info!("Consumer thread started");
-                loop {
-                    match dev.fetch_events() {
-                        Ok(events) => {
-                            for ev in events {
-                                if tx_consumer.send(Event::Consumer(ev)).is_err() {
-                                    return;
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            warn!("Consumer device error: {}", e);
-                            thread::sleep(std::time::Duration::from_millis(100));
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                warn!("Failed to open consumer device: {}", e);
-            }
-        }
+        run_device_loop(&consumer_path, "consumer", tx_consumer, Event::Consumer);
     });
 
     let mut detector = GestureDetector::new(config.gesture.threshold);
@@ -150,6 +106,7 @@ fn main() -> Result<()> {
                         let (_x, y) = detector.last_position();
                         let is_mod = y.map_or(false, |v| v > 600);
                         if is_mod && profiles.len() > 1 {
+                            executor.stop_repeat();
                             profile_index = (profile_index + 1) % profiles.len();
                             let next_path = profiles[profile_index].clone();
                             match Config::load(&next_path) {
@@ -162,6 +119,7 @@ fn main() -> Result<()> {
                                 }
                             }
                         } else {
+                            executor.stop_repeat();
                             let name = gesture.as_str();
                             if cli.remap {
                                 if let Some(action) = config.get_mapping(name) {
@@ -173,9 +131,15 @@ fn main() -> Result<()> {
                         }
                     } else {
                         let name = gesture.as_str();
+                        executor.stop_repeat();
                         if cli.remap {
                             if let Some(action) = config.get_mapping(name) {
-                                executor.execute(action, name);
+                                if action.starts_with("key:") {
+                                    let (count, key) = parse_repeat_key(&action[4..]);
+                                    executor.repeat_key(key, count, name);
+                                } else {
+                                    executor.execute(action, name);
+                                }
                             }
                         } else {
                             println!("[DEBUG] >>> {} DETECTED <<<", name);
@@ -184,6 +148,7 @@ fn main() -> Result<()> {
                 }
             }
             Ok(Event::Consumer(ev)) => {
+                executor.stop_repeat();
                 handle_consumer_event(&ev, cli.remap, &config, &executor);
             }
             Err(_) => {
@@ -194,6 +159,17 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Parse a key string with optional repeat prefix, e.g. "20W" -> (20, "W"), "A" -> (1, "A").
+fn parse_repeat_key(s: &str) -> (u32, &str) {
+    let first_non_digit = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
+    if first_non_digit == 0 {
+        (1, s)
+    } else {
+        let count = s[..first_non_digit].parse::<u32>().unwrap_or(1);
+        (count.max(1), &s[first_non_digit..])
+    }
 }
 
 fn open_device(path: &str, label: &str) -> Result<evdev::Device> {
@@ -208,6 +184,59 @@ fn open_device(path: &str, label: &str) -> Result<evdev::Device> {
         info!("Grabbed {}: {}", label, path);
     }
     Ok(dev)
+}
+
+fn run_device_loop(
+    path: &str,
+    label: &str,
+    tx: mpsc::Sender<Event>,
+    wrap: fn(evdev::InputEvent) -> Event,
+) {
+    use std::path::Path;
+    let mut reported_missing = false;
+    loop {
+        if !Path::new(path).exists() {
+            if !reported_missing {
+                info!("{} device disconnected, waiting for reconnect...", label);
+                reported_missing = true;
+            }
+            thread::sleep(std::time::Duration::from_secs(2));
+            continue;
+        }
+        reported_missing = false;
+        match open_device(path, label) {
+            Ok(mut dev) => {
+                info!("{} device connected", label);
+                let mut backoff = 0u32;
+                loop {
+                    match dev.fetch_events() {
+                        Ok(events) => {
+                            backoff = 0;
+                            for ev in events {
+                                if tx.send(wrap(ev)).is_err() {
+                                    return;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            if !Path::new(path).exists() {
+                                info!("{} device disconnected", label);
+                                break;
+                            }
+                            let delay_ms = 100u64 * 2u64.pow(backoff.min(6));
+                            warn!("{} device error (retry in {}ms): {}", label, delay_ms, e);
+                            thread::sleep(std::time::Duration::from_millis(delay_ms));
+                            backoff += 1;
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Failed to open {} device: {}", label, e);
+                thread::sleep(std::time::Duration::from_secs(2));
+            }
+        }
+    }
 }
 
 fn handle_touch_event(

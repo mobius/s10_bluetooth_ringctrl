@@ -5,12 +5,12 @@ touch = "/dev/input/event22"
 consumer = "/dev/input/event23"
 
 [gesture]
-threshold = 80
+threshold = 40
 
 [mappings]
-UP = "key:W"
-DOWN = "key:S"
-LEFT = "key:A"
-RIGHT = "key:D"
-TAP = "key:Space"
+UP = "key:10W"
+DOWN = "key:10S"
+LEFT = "key:10A"
+RIGHT = "key:10D"
+TAP = "mouse:left"
 POWER = "key:Escape"

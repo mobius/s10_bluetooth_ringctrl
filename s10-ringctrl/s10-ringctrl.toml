@@ -1,5 +1,4 @@
-alt_configs = ["s10-ringctrl-hyprland.toml"]
-# alt_configs = ["s10-ringctrl-hyprland.toml", "s10-ringctrl-gaming.toml"]
+alt_configs = ["s10-ringctrl-hyprland.toml", "s10-ringctrl-gaming.toml"]
 
 [device]
 touch = "/dev/input/event22"
